@@ -1,0 +1,112 @@
+import pygame
+
+
+class Board:
+    def __init__(self, width, height):
+        self.color = ['black', 'red', 'blue']
+        self.width = width
+        self.height = height
+        self.flag = False
+        self.board = [[0] * width for _ in range(height)]
+        self.left = 10
+        self.top = 10
+        self.cell_size = 30
+
+    def set_view(self, left, top, cell_size):
+        self.left = left
+        self.top = top
+        self.cell_size = cell_size
+
+    def render(self, screen):
+        for i in range(len(self.board)):
+            for j in range(len(self.board[0])):
+                pygame.draw.rect(screen, 'black', (
+                    self.left + self.cell_size * j, self.top + self.cell_size * i, self.cell_size, self.cell_size))
+        for i in range(len(self.board) + 1):
+            for j in range(len(self.board[0]) + 1):
+                pygame.draw.line(screen, 'white', (self.left + self.cell_size * j, self.top),
+                                 (self.left + self.cell_size * j, self.top + len(self.board) * self.cell_size), 1)
+                pygame.draw.line(screen, 'white', (self.left, self.top + self.cell_size * i),
+                                 (self.left + self.cell_size * j, self.top + self.cell_size * i), 1)
+
+    def get_cell(self, mouse_pos):
+        if (mouse_pos[0] not in range(self.left, self.left + self.cell_size * len(self.board[0])) or
+                mouse_pos[1] not in range(self.top, self.top + self.cell_size * len(self.board))):
+            return None
+        return (mouse_pos[0] - self.left) // self.cell_size, (mouse_pos[1] - self.top) // self.cell_size
+
+    def on_click(self, cell_coords):
+        if cell_coords:
+            x, y = cell_coords
+            if self.board[y][x] == 0:
+                self.board[y][x] = 1
+            else:
+                self.board[y][x] = 0
+
+        else:
+            print('Вне доски')
+
+    def get_click(self, mouse_pos):
+        cell = self.get_cell(mouse_pos)
+        self.on_click(cell)
+
+
+class Life(Board):
+    def render(self, screen):
+        for i in range(len(self.board)):
+            for j in range(len(self.board[0])):
+                if self.board[i][j] == 0:
+                    pygame.draw.rect(screen, 'black', (
+                        self.left + self.cell_size * j, self.top + self.cell_size * i, self.cell_size, self.cell_size))
+                else:
+                    pygame.draw.rect(screen, 'green', (
+                        self.left + self.cell_size * j, self.top + self.cell_size * i, self.cell_size, self.cell_size))
+        for i in range(len(self.board) + 1):
+            for j in range(len(self.board[0]) + 1):
+                pygame.draw.line(screen, 'white', (self.left + self.cell_size * j, self.top),
+                                 (self.left + self.cell_size * j, self.top + len(self.board) * self.cell_size), 3)
+                pygame.draw.line(screen, 'white', (self.left, self.top + self.cell_size * i),
+                                 (self.left + self.cell_size * j, self.top + self.cell_size * i), 3)
+
+    def next_move(self):
+        copy_board = [[j for j in i] for i in self.board]
+        for i in range(len(self.board)):
+            copy_board[i].insert(len(copy_board[0]), 0)
+            copy_board[i].insert(0, 0)
+        copy_board.insert(len(copy_board), [0 for _ in range(len(self.board[0]) + 2)])
+        copy_board.insert(0, [0 for _ in range(len(self.board[0]) + 2)])
+        empty_board = [[j for j in i] for i in copy_board]
+        for i in range(1, len(copy_board) - 1):
+            for j in range(1, len(copy_board[0]) - 1):
+                count_lifes = copy_board[i][j + 1] + copy_board[i][j - 1] + copy_board[i + 1][j] + copy_board[i - 1][j] \
+                              + copy_board[i + 1][j + 1] + copy_board[i + 1][j - 1] \
+                              + copy_board[i - 1][j + 1] + copy_board[i - 1][j - 1]
+                if (count_lifes == 2 or count_lifes == 3) and copy_board[i][j] == 1:
+                    empty_board[i][j] = 1
+                elif copy_board[i][j] == 0 and count_lifes == 3:
+                    empty_board[i][j] = 1
+                else:
+                    empty_board[i][j] = 0
+        return [[j for j in i[1:-1]] for i in empty_board[1:-1]]
+
+
+if __name__ == '__main__':
+    pygame.init()
+    life = Life(25, 25)
+    size = width, height = (
+        life.width * life.cell_size + life.left * 2, life.height * life.cell_size + life.top * 2)
+    screen = pygame.display.set_mode(size)
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                life.get_click(event.pos)
+            if (event.type == pygame.MOUSEBUTTONDOWN and event.button == 3) or event.type == pygame.K_SPACE:
+                life.flag = not life.flag
+        if life.flag:
+            life.board = life.next_move()
+        screen.fill((0, 0, 0))
+        life.render(screen)
+        pygame.display.flip()
